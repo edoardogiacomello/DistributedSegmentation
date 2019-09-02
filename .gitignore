@@ -102,3 +102,15 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+
+# model folder
+models/
+src/models/
+
+# Results folder
+src/results/
+
+# Dataset and other big files
+src/datasets/
+
