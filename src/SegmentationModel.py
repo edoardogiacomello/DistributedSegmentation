@@ -29,6 +29,7 @@ class SegmentationModel():
         self.n_labels = len(self.CHANNEL_ORDER)
         self.size = size
         self.threshold = threshold
+        self.epoch=0
         
     
     def load_dataset(self, path, size=224, batch_size=32, filter_expr=None):
@@ -56,9 +57,38 @@ class SegmentationModel():
         dataset = dataset.prefetch(1)
         return dataset
     
+    def load_test_dataset(self, path, size=224, batch_size=1, filter_expr=None):
+        ''' Loads the test dataset. Default parameter is 1 and the dataset is not shuffled. The iterator also returns image paths'''
+        def parse_sample(png_path, seg_path, lab_name, lab_value):
+            resize = tf.image.resize_image_with_pad if tf.__version__.startswith('1.') else tf.image.resize_with_pad
+            png_raw = tf.io.read_file(png_path)
+            png = tf.image.decode_png(png_raw, channels=3)
+            png = resize(png, size, size)
+            png = preprocess_input(tf.cast(png, tf.float32))
+            seg_raw = tf.io.read_file(seg_path)
+            seg = tf.image.decode_png(seg_raw, channels=1)
+            seg = resize(seg, size, size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            segs = []
+            for lid in self.CHANNEL_ORDER:
+                # Creating 5 masks out of the index labels
+                segs.append(tf.cast(tf.equal(seg, lid), tf.float32))
+            seg = tf.concat(segs, axis=-1)
+            return png_path, seg_path, png, seg
+        dataset = tf.data.experimental.CsvDataset(path, [tf.string, tf.string, tf.string, tf.int32], header=True)
+        if filter_expr:
+            dataset = dataset.filter(filter_expr)
+        dataset = dataset.map(parse_sample)
+        dataset = dataset.batch(batch_size)
+        dataset = dataset.prefetch(1)
+        return dataset
+    
     def load_base_network(self):
         self.model = tk.models.load_model(self.BASE_MODEL_PATH)
     
+    def load_finetuned_network(self, epoch):
+        self.model = tk.models.load_model(self.MODEL_OUT_FOLDER+'model_ep{}.h5'.format(epoch))
+        self.epoch = epoch
+        print("Loaded model for label {} at epoch {}".format(self.target_label, self.epoch))
     
     def define_metric_accumulators(self):
         self.train_loss = tf.metrics.Mean()
@@ -94,7 +124,7 @@ class SegmentationModel():
         self.loss = tk.losses.CategoricalCrossentropy()        
         self.optimizer = tk.optimizers.Adam()
         progbar = tk.utils.Progbar(None)
-        for e in range(epochs):
+        for e in range(self.epochs+1,  epochs):
             i = 0
             # Train Step
             for x, y in self.load_dataset(self.ds_csv_paths['train'][self.target_label], batch_size=batch_size, size=self.size):
@@ -141,8 +171,15 @@ class SegmentationModel():
                     self.valid_IoU[l].reset_states()
             # Saving
             tk.models.save_model(self.model, self.MODEL_OUT_FOLDER+'model_ep{}.h5'.format(e))
-            
-            
-            
+            self.epochs = e
 
-            
+    def predict(self, x):
+        return self.model(x)
+    
+    def predict_raw(self, raw_file):
+        x = tf.image.decode_png(raw_file, channels=3)
+        x = resize(png, size, size)
+        x = preprocess_input(tf.cast(png, tf.float32))
+        return self.model(x)
+        
+        
