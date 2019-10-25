@@ -5,6 +5,10 @@ import datetime
 import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report
 
+import tensorflow as tf
+from scipy.ndimage import convolve
+
+
 
 class StatisticsLogger():
     def __init__(self):
@@ -182,17 +186,84 @@ class NegTools():
         maxagr = self.binarize(maxagr, strategy='maximum')
         return self.tie_breaking(maxagr)
 
-    def masked_mae(self, x, y, mask=None, axis=None):
-        error = np.abs(x - y)
-        if mask is not None:
-            error = np.where(mask.astype(np.bool), error, np.nan)
-        return np.nanmean(error, axis=axis)
+    
+#      Numpy version for the local mean. Does not perform normalization
+#      def get_local_mean(self, pred, scope):
+#         '''
+#         Perform convolution across the pixels of a prediction.
+#         :param pred:
+#         :param scope: filter size.
+#         :return:
+#         '''       
+        
+#         def convlution_np(x, k):
+#             filters = np.full((k, k), 1.0 / (k * k))
+#             return convolve(x, weights=filter, mode='constant', cval=0)
+#         return np.stack([convlution_np(pred[:,:,l], scope) for l in range(pred.shape[-1])], axis=-1)
+        
+    @tf.function
+    def get_local_mean(self, pred, scope):
+        '''
+        Perform convolution across the pixels of a prediction.
+        :param pred:
+        :param scope: filter size.
+        :return:
+        '''
+        if scope % 2 == 0:
+            print("Warning: Even filter size could result in asymmetrical convolution")
+        pred = tf.cast(pred, tf.float32)
+        filters = tf.fill((scope, scope, pred.shape[-1], 1), 1.0/(scope*scope))
+        convs =  tf.nn.depthwise_conv2d(pred, filters, strides=[1,1,1,1], padding='SAME')
+        return convs
+    
+    @tf.function
+    def normalize_softmax(self, x):
+        softmax = lambda x: tf.math.softmax(x, axis=-1)
+        if len(x.shape) >= 4:
+            return tf.map_fn(softmax, x)
+        else:
+            return tf.math.softmax(x, axis=-1)
+    
+    def is_normalized(self, predictions):
+        return np.all(np.equal(np.around(np.sum(predictions, axis=-1), decimals=3), 1.0))
+    
+    def get_confidence_convolution(self, pred, scope, normalize):
+        convs = self.get_local_mean(pred, scope)
+        if not self.is_normalized(convs) and normalize:
+            return self.normalize_softmax(convs).numpy()
+        else:
+            return convs.numpy()
+        
+    class AggregationMethods():
+        pass
+    
+    class StrategyFunctions():
+        def entropy_over_pixels(proposal):
+            n_labels = proposal.shape[-1]
+            entr = lambda x, base=n_labels, eps=10e-16: -np.sum(x*np.log(x+eps)/np.log(base),axis=-1)
+            entr_over_pixels = entr(proposal)
+            return np.expand_dims(entr_over_pixels, axis=-1)
+        
+        
+        
+# Use these carefully, they account for the full volume in input and may be misleading
+#     def masked_mae(self, x, y, mask=None, axis=None):
+#         error = np.abs(x - y)
+#         if mask is not None:
+#             error = np.where(mask.astype(np.bool), error, np.nan)
+#         return np.nanmean(error, axis=axis)
 
-    def dice_score(self, pred, true, mask=None, axis=None):
-        tp, tn, fp, fn = self.confusion_matrix(true, pred, mask=mask, axis=axis)
-        return 2. * tp / (2 * tp + fp + fn)
+#     def dice_score(self, pred, true, mask=None, axis=None):
+#         tp, tn, fp, fn = self.confusion_matrix(true, pred, mask=mask, axis=axis)
+#         return 2. * tp / (2 * tp + fp + fn)
 
 
+
+
+    
+    
+    
+    
 # OTER UTILITIES
 
 def softmax(X, theta=1.0, axis=None):
