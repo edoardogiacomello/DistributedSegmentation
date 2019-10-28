@@ -2,7 +2,7 @@ ARG TF_TAG=2.0.0a0-gpu-py3-jupyter
 FROM tensorflow/tensorflow:$TF_TAG
 WORKDIR /tf
 RUN apt-get update
-RUN apt-get install -y vim wget
+RUN apt-get install -y vim wget tmux
 # Installing nodejs required for jupyterlab plugins
 RUN wget https://deb.nodesource.com/setup_11.x
 RUN chmod +x setup_11.x

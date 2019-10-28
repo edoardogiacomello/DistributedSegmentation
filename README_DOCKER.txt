@@ -5,12 +5,12 @@ The corresponding environment folders are for avoid loading all the sources in t
 # Running
 Docker image should be "RUN" ONLY ONCE in the repository root, using the following synthax
 
-nvidia-docker run -p 8889:8888 -v $PWD/../datasets/:/home/datasets/:ro -v $PWD:/tf $CONTAINER_NAME -it $IMAGENAME
+docker run --runtime="nvidia" -p 8889:8888 -v $PWD/../datasets/:/home/datasets/:ro -v $PWD:/tf --name=dcseg -it edoardogiacomello/dcseg:latest
 
 8889 is the port where to expose jupyter lab
 ../datasets [it is outside of the repository!] is a folder that is mounted for packing the original datasets into .tfrecords datasets, which are usually stored into ./src/datasets/. You can remove this binding if you don't need it
-$CONTAINER_NAME is a user friendly name for your running container
-$IMAGENAME is the name of the image built using build.sh. You can find it using the "docker images" command
+$CONTAINER_NAME is a user friendly name for your running container [default: dcseg]
+$IMAGENAME is the name of the image built using build.sh. You can find it using the "docker images" command [default: edoardogiacomello/dcseg:latest]
 
 1) The images run a bash shell by default. For running jupiter use the following procedure:
 
