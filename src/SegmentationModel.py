@@ -181,5 +181,3 @@ class SegmentationModel():
         x = resize(png, size, size)
         x = preprocess_input(tf.cast(png, tf.float32))
         return self.model(x)
-        
-        

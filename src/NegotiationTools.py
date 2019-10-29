@@ -99,7 +99,7 @@ class StatisticsLogger():
         :return:
         '''
 
-        if mask is None:
+        if mask is None or np.all(np.logical_not(mask)):
             mask = np.full(ground_truth.shape[0:2], fill_value=True)
 
         ground_truth = ground_truth[np.where(mask)].argmax(axis=-1)
@@ -233,17 +233,34 @@ class NegTools():
             return self.normalize_softmax(convs).numpy()
         else:
             return convs.numpy()
-        
-    class AggregationMethods():
-        pass
     
-    class StrategyFunctions():
-        def entropy_over_pixels(proposal):
-            n_labels = proposal.shape[-1]
-            entr = lambda x, base=n_labels, eps=10e-16: -np.sum(x*np.log(x+eps)/np.log(base),axis=-1)
-            entr_over_pixels = entr(proposal)
-            return np.expand_dims(entr_over_pixels, axis=-1)
+    def entropy_per_pixels(self, proposal):
+        '''
+        Get the entropy over the labels of a proposal
+        :param proposal - proposals of shape [H, W, labels] 
+        '''
+        n_labels = proposal.shape[-1]
+        entr = lambda x, base=n_labels, eps=10e-16: -np.sum(x*np.log(x+eps)/np.log(base),axis=-1)
+        entr_over_pixels = entr(proposal)
+        return np.expand_dims(entr_over_pixels, axis=-1)
+
+    def get_confidence(self, proposal, method, convolution_size=3):
+        ''' 
+        Get the confidence for the current proposal.
+        :param proposal - An array of shape [H, W, labels]
+        :param method - can be either 'pixelwise_entropy', 'mean_entropy' or 'convolution_entropy'.
+        :param convolution_size [Default: 3] size of the convolution filter for 'convolution_entropy'.        
+        '''
+        assert method in ['pixelwise_entropy', 'mean_entropy', 'convolution_entropy']
+        assert len(proposal.shape) == 3, "Proposal must have shape [H, W, Labels]"
         
+        entropy = self.entropy_per_pixels(proposal)
+        if method == 'pixelwise_entropy':
+            return 1.0 - entropy
+        if method == 'mean_entropy':
+            return 1.0 - np.full_like(entropy, np.mean(entropy))
+        if method == 'convolution_entropy':
+            return 1.0 - self.get_confidence_convolution(entropy[np.newaxis, ...], convolution_size, normalize=False)[0]
         
         
 # Use these carefully, they account for the full volume in input and may be misleading
