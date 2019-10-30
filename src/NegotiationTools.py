@@ -385,3 +385,4 @@ def plot(proposals=None, input_sample=None, ground_truth=None, agreement=None, a
             plt.axis('off')
             plt.imshow(agreement[..., l], cmap='Greys_r', vmin=0.0, vmax=1.0)
             sub.set_title(str(agreement_title) + ": " + label)
+

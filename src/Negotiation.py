@@ -1,5 +1,6 @@
 from NegotiationTools import NegTools, StatisticsLogger
 from NegotiationConfig import *
+from SegmentationModel import SegmentationModel
 
 class Agent():
     def __init__(self, agentname, model, confidence_func):
@@ -19,8 +20,8 @@ class Agent():
     def new_task(self, input_image=None, initial_proposal=None):
         
         if input_image is not None and initial_proposal is None:
-            self.task = image
-            self.initial_proposal = self.model.predict(image).numpy()[0]
+            self.task = input_image
+            self.initial_proposal = self.model.predict(input_image).numpy()[0]
         elif input_image is None and initial_proposal is not None:
             self.initial_proposal = initial_proposal
         else:
@@ -140,3 +141,57 @@ def run_negotiation_on_proposasls(sample_id, initial_proposals, ground_truth, co
                 break
             #print("Sample:{} Step: {}".format(str(sample_id), str(step)))
         return curr_agreement, curr_proposals
+    
+    
+    
+    
+    
+def run_negotiation_on_dataset(models, confidence_functions, method_name, max_steps, agent_weights = None, logger_ckpt='results/neg_ckpt.csv'):    
+    '''
+    Run a negotiation starting from an initial proposals and a ground truth
+    :param models: An array of SegmentationModels that are embedded by the agent. Need to be already loaded.
+    :param confidence_functions: array of confidence functions that will be called by each agent. each function should take as input a proposal of shape [H,W,Labels] as input and return a confidence of shape [H, W].
+    :param method_name: name of the negotiation method that is currently used
+    :param max_steps: maximum steps of negotiations. If log_process is True and consensus is reached, the log will be padded up to max_steps for visualization consistency. If log_process is False, this can be set to a very high number and the negotiations stops only when consensus is reached.
+    :param agent_weights: [Default:None] weights of the agents used in aggregation phase
+    :return: a DataFrame
+    '''
+    
+    logger = StatisticsLogger()
+    
+    agents = [Agent(agentname, model, confidence_func) for agentname, model, confidence_func in zip(AGENT_NAMES, models, confidence_functions)]
+    mediator = Mediator(agents)
+        
+    DATASET = 'datasets/coco_animals_test_balanced.csv'
+    for sample_id, (png_path, seg_path, input_sample, ground_truth) in enumerate(SegmentationModel('dummy').load_test_dataset(DATASET, batch_size=1)):
+        png_path = png_path.numpy().astype(np.str).item()
+        seg_path = seg_path.numpy().astype(np.str).item()
+        # input_sample = input_sample.numpy() No need to convert it to numpy
+        ground_truth = ground_truth.numpy()[0]
+        next_step = enumerate(mediator.negotiation(input_image=input_sample, agent_weights=agent_weights,timeout=max_steps))
+        for step, (status, curr_agreement, curr_proposals) in next_step:
+            logger.log_step(sample=sample_id, 
+                            png_path=png_path, 
+                            seg_path=seg_path,
+                            step=step,
+                            method=method_name,
+                            status=status,
+                            agreement=curr_agreement,
+                            proposals=curr_proposals,
+                            ground_truth=ground_truth,
+                            max_steps=max_steps,
+                            binary_strategy='maximum'
+                            )
+            print("\rSample:{} Step: {}".format(str(sample_id), str(step)), end='')
+        if sample_id % 50==0:
+            logger.pd.to_csv(logger_ckpt)
+    return logger.pd
+    
+def load_models():
+    from SegmentationModel import SegmentationModel
+    # Creating the models
+    models = [SegmentationModel(ALL_LABELS[i]) for i in range(len(AGENT_NAMES))]
+    # Load the checkpoints
+    for m in models:
+        m.load_finetuned_network(epoch=275)
+    return models
