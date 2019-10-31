@@ -262,7 +262,19 @@ class NegTools():
         if method == 'convolution_entropy':
             return 1.0 - self.get_confidence_convolution(entropy[np.newaxis, ...], convolution_size, normalize=False)[0]
         
+    def weighted_average(self, proposals, weights, binary_strategy='maximum'):
+        '''
+        Computes an agreement based on the weighted average of the proposals. Applies Tie breaking if the binarization is active.
+        :param proposals - An array of shape [Agents, H, W, Labels]
+        :param weights - An array of shape [Agents, H, W]
+        :param binary_strategy [Default: 'maximum'] binarization strategy. Applies Tie Breaking. If None, a float result is returned.
+        '''
         
+        agreement = np.divide(np.sum(proposals*weights, axis=0), np.sum(weights, axis=0))
+        if binary_strategy is None:
+            return agreement
+        else:
+            return self.tie_breaking(self.binarize(agreement, strategy=binary_strategy))
 # Use these carefully, they account for the full volume in input and may be misleading
 #     def masked_mae(self, x, y, mask=None, axis=None):
 #         error = np.abs(x - y)
