@@ -178,13 +178,15 @@ class NegTools():
         mean_float = proposals_np.mean(axis=0)
         return self.binarize(mean_float, strategy=binary_strategy)
 
-    def max_proposal(self, proposals_np):
+    def max_proposal(self, proposals_np, binary_strategy='maximum'):
         ''' Agreement is computed by taking the maximum prediction over all the agents and binarizing the result taking the maximum label for each pixel. Ties are resolved by random sampling'''
         maxagr = np.max(proposals_np, axis=0)
         # Normalization
-        maxagr = maxagr / np.sum(maxagr, axis=-1)
-        maxagr = self.binarize(maxagr, strategy='maximum')
-        return self.tie_breaking(maxagr)
+        maxagr = maxagr / np.sum(maxagr, axis=-1, keepdims=True)
+        if binary_strategy is not None:
+            return self.tie_breaking(self.binarize(maxagr, strategy=binary_strategy))
+        else:
+            return maxagr
 
     
 #      Numpy version for the local mean. Does not perform normalization
