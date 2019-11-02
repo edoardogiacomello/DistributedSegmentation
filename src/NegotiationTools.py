@@ -277,6 +277,26 @@ class NegTools():
             return agreement
         else:
             return self.tie_breaking(self.binarize(agreement, strategy=binary_strategy))
+
+        
+    def add_noise(self, proposal, std, mean=0.0, normalize=True):
+        assert len(proposal.shape) == 3, "Please input proposals for a single agent, in format (h, w, labels)"
+        noise = np.random.normal(loc=mean, scale=std, size=proposal.shape)
+        proposal = np.clip(proposal + noise, 0.0, 1.0)
+        if normalize:
+            return proposal / proposal.sum(axis=-1, keepdims=True)
+        else:
+            return proposal
+        
+        
+        
+        
+
+        
+        
+        
+        
+        
 # Use these carefully, they account for the full volume in input and may be misleading
 #     def masked_mae(self, x, y, mask=None, axis=None):
 #         error = np.abs(x - y)

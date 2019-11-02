@@ -138,8 +138,11 @@ def run_negotiation_on_proposasls(sample_id, initial_proposals, ground_truth, co
 
         for step, (status, curr_agreement, curr_proposals) in next_step:
             if status == 'consensus':
+                print("Sample {} Consensus Reached at step, current step: {}".format(sample_id, step))
+                return curr_agreement, curr_proposals
                 break
             #print("Sample:{} Step: {}".format(str(sample_id), str(step)))
+        print("Sample {} Timed out after {} steps".format(sample_id, step))
         return curr_agreement, curr_proposals
     
     
