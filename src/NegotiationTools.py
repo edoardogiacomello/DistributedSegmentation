@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from NegotiationConfig import *
 import datetime
 import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report
@@ -15,7 +14,7 @@ class StatisticsLogger():
         self.pd = pd.DataFrame()
         self.tools = NegTools()
 
-    def log_step(self, sample, png_path, seg_path, step, method, status, agreement, proposals, ground_truth, max_steps,
+    def log_step(self, sample, png_path, seg_path, step, method, status, agreement, proposals, ground_truth, max_steps, agent_names=None, label_names=None,
                  binary_strategy='maximum'):
         '''
         Calculates metrics and logs them in an internal DataFrame.
@@ -32,6 +31,8 @@ class StatisticsLogger():
         :param proposals: Float vector of proposals. Must have shape (Agent, H, W, Label)
         :param ground_truth: Float vector of ground truth. Must have shape (H, W, Label). Typically composed of 0.0 and 1.0 values.
         :param max_steps: Max steps of negotiation to log. Negotiations that reach consensus in a previous step gets padded up to this number of records.
+        :param agent_names: Human readeable names for the agents. If None, it will be inferred from the first axis of proposals and they will be called "Agent 0", "Agent 1", etc.
+        :param label_names: Human readeable names for the labels. If None, it will be inferred from the first axis of ground_truth and they will be called "Label 0", "Label 1", etc.
         :param binary_strategy: Binarization strategy used for converting float proposals to binary. Use 'maximum' if the proposals sums to 1.0 (softmax output of the network), otherwise 'threshold' (sigmoid output).
         :return: None
         '''
@@ -62,16 +63,17 @@ class StatisticsLogger():
         }
 
         self.agr_stats = self.compute_statistics(self.ground_truth_bool, binary_agreement,
-                                                 prefix='agr_vs_gt_'.format(method), mask=self.mask)
-
+                                                 prefix='agr_vs_gt_'.format(method), mask=self.mask, label_names=label_names)
+        
         # Computation to be performed for each agent (there is one proposal per agent)
+        agent_names = ['Agent {}'.format(n) for n in range(proposals.shape[0])] if agent_names is None else agent_names
         for ag_id in range(proposals.shape[0]):
             agent_row = {
-                'agent': AGENT_NAMES[ag_id],
+                'agent': agent_names[ag_id],
             }
 
             self.prop_stats = self.compute_statistics(self.ground_truth_bool, binary_proposals[ag_id],
-                                                      prefix='prop_vs_gt_'.format(method), mask=self.mask)
+                                                      prefix='prop_vs_gt_'.format(method), mask=self.mask, label_names=label_names)
 
             # Collecting data
             agent_row.update(step_row)
@@ -80,25 +82,27 @@ class StatisticsLogger():
 
             # Logging
             self.pd = self.pd.append(agent_row, ignore_index=True)
-
+        
         if status == 'consensus' and step + 1 < max_steps:
             repetitions = range(step + 1, max_steps)
             filling = pd.concat([self.pd.tail(n=len(AGENT_NAMES))] * len(repetitions), ignore_index=True)
             filling['status'] = 'padding'
-            filling['step'] = [l for l in repetitions for k in range(len(ALL_LABELS))]
+            filling['step'] = [l for l in repetitions for k in range(len(agent_names))]
             self.pd = self.pd.append(filling, ignore_index=True)
 
-    def compute_statistics(self, ground_truth, predictions, prefix, mask=None):
+    def compute_statistics(self, ground_truth, predictions, prefix, label_names=None, mask=None):
         '''
         Compute statistics (using sklearn classification report), eventually masking the inputs.
 
-        :param ground_truth:
+        :param ground_truth: vector of 
         :param predictions:
         :param prefix: prefix to give to the returned dictionary values
         :param mask:
         :return:
         '''
-
+        labels = range(ground_truth.shape[-1])
+        label_names = ['Label {}'.format(n) for n in labels] if label_names is None else label_names
+        
         if mask is None or np.all(np.logical_not(mask)):
             mask = np.full(ground_truth.shape[0:2], fill_value=True)
 
@@ -107,8 +111,8 @@ class StatisticsLogger():
 
         report = classification_report(y_true=ground_truth,
                                        y_pred=predictions,
-                                       labels=range(len(CHANNEL_NAMES)),
-                                       target_names=CHANNEL_NAMES,
+                                       labels=labels,
+                                       target_names=label_names,
                                        output_dict=True
                                        )
         # Flattening the report
@@ -388,7 +392,8 @@ def numpy_to_pandas_series(data, index_prefix=None, index_values=None):
 
 
 def plot(proposals=None, input_sample=None, ground_truth=None, agreement=None, agreement_title='Agr', size=(10, 10),
-         dpi=200):
+         dpi=200, agent_names=None, label_names=None):  
+    
     if input_sample is not None:
         sub = plt.figure(figsize=tuple((int(f / 4) for f in size)), dpi=dpi)
         plt.axis('off')
@@ -396,26 +401,30 @@ def plot(proposals=None, input_sample=None, ground_truth=None, agreement=None, a
         plt.title("Input Sample")
 
     if proposals is not None:
+        agent_names = ['Agent {}'.format(n) for n in range(proposals.shape[0])] if agent_names is None else agent_names
+        label_names = ['Label {}'.format(n) for n in range(proposals.shape[-1])] if label_names is None else label_names
         plt.figure(figsize=size, dpi=dpi)
-        for a, agent in enumerate(AGENT_NAMES):
-            for l, label in enumerate(CHANNEL_NAMES):
-                sub = plt.subplot(len(AGENT_NAMES), len(CHANNEL_NAMES), 1 + len(CHANNEL_NAMES) * a + l)
+        for a, agent in enumerate(agent_names):
+            for l, label in enumerate(label_names):
+                sub = plt.subplot(len(agent_names), len(label_names), 1 + len(label_names) * a + l)
                 plt.axis('off')
                 plt.imshow(proposals[a, ..., l], cmap='Greys_r', vmin=0.0, vmax=1.0)
                 sub.set_title("Proposal \n" + agent + ":" + label)
 
     if ground_truth is not None:
+        label_names = ['Label {}'.format(n) for n in range(ground_truth.shape[-1])] if label_names is None else label_names
         fig = plt.figure(figsize=size, dpi=dpi)
-        for l, label in enumerate(CHANNEL_NAMES):
-            sub = plt.subplot(1, len(CHANNEL_NAMES), 1 + l)
+        for l, label in enumerate(label_names):
+            sub = plt.subplot(1, len(label_names), 1 + l)
             plt.axis('off')
             plt.imshow(ground_truth[..., l], cmap='Greys_r', vmin=0.0, vmax=1.0)
             sub.set_title("GT: " + label)
 
     if agreement is not None:
+        label_names = ['Label {}'.format(n) for n in range(agreement.shape[-1])] if label_names is None else label_names
         plt.figure(figsize=size, dpi=dpi)
-        for l, label in enumerate(CHANNEL_NAMES):
-            sub = plt.subplot(1, len(CHANNEL_NAMES), 1 + l)
+        for l, label in enumerate(label_names):
+            sub = plt.subplot(1, len(label_names), 1 + l)
             plt.axis('off')
             plt.imshow(agreement[..., l], cmap='Greys_r', vmin=0.0, vmax=1.0)
             sub.set_title(str(agreement_title) + ": " + label)

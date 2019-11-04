@@ -1,6 +1,6 @@
 from NegotiationTools import NegTools, StatisticsLogger
-from NegotiationConfig import *
 from SegmentationModel import SegmentationModel
+import numpy as np
 
 class Agent():
     def __init__(self, agentname, model, confidence_func):
@@ -94,7 +94,7 @@ class Mediator():
         raise StopIteration()
         
 
-def run_negotiation_on_proposasls(sample_id, initial_proposals, ground_truth, confidence_functions, method_name, log_process, max_steps, agent_weights = None):    
+def run_negotiation_on_proposasls(sample_id, initial_proposals, ground_truth, confidence_functions, method_name, log_process, max_steps, agent_names=None, agent_weights = None):    
     '''
     Run a negotiation starting from an initial proposals and a ground truth
     :param sample_id: an integer for identifying the current input sample. Will be reported in the log.
@@ -104,14 +104,16 @@ def run_negotiation_on_proposasls(sample_id, initial_proposals, ground_truth, co
     :param method_name: name of the negotiation method that is currently used
     :param log_process: [Bool] if True, the function logs statistics for the full process, otherwise it only returns the last agreement and proposals (determined from either the reach of consensus or the given timeout)
     :param max_steps: maximum steps of negotiations. If log_process is True and consensus is reached, the log will be padded up to max_steps for visualization consistency. If log_process is False, this can be set to a very high number and the negotiations stops only when consensus is reached.
+    :param agent_names: Human readeable names for the agents. If None, it will be inferred from the confidence_functions and they will be called "Agent 0", "Agent 1", etc.
     :param agent_weights: [Default:None] weights of the agents used in aggregation phase
     :return: If log_process is True: (Log DataFrame, Last Agreement, Last Proposals), otherwise (Last Agreement, Last Proposals)
     '''
     
     
     logger = StatisticsLogger()
-    
-    agents = [Agent(modelname, None, confidence_func) for modelname, confidence_func in zip(AGENT_NAMES, confidence_functions)]
+    if agent_names is None:
+        agent_names = ['Agent {}'.format(n) for n in range(len(confidence_functions))]
+    agents = [Agent(modelname, None, confidence_func) for modelname, confidence_func in zip(agent_names, confidence_functions)]
     mediator = Mediator(agents)
     
     if log_process:
@@ -144,25 +146,24 @@ def run_negotiation_on_proposasls(sample_id, initial_proposals, ground_truth, co
             #print("Sample:{} Step: {}".format(str(sample_id), str(step)))
         print("Sample {} Timed out after {} steps".format(sample_id, step))
         return curr_agreement, curr_proposals
+
     
-    
-    
-    
-    
-def run_negotiation_on_dataset(models, confidence_functions, method_name, max_steps, agent_weights = None, logger_ckpt='results/neg_ckpt.csv'):    
+def run_negotiation_on_dataset(models, confidence_functions, method_name, max_steps, agent_names=None, agent_weights = None, logger_ckpt='results/neg_ckpt.csv'):    
     '''
     Run a negotiation starting from an initial proposals and a ground truth
     :param models: An array of SegmentationModels that are embedded by the agent. Need to be already loaded.
     :param confidence_functions: array of confidence functions that will be called by each agent. each function should take as input a proposal of shape [H,W,Labels] as input and return a confidence of shape [H, W].
     :param method_name: name of the negotiation method that is currently used
     :param max_steps: maximum steps of negotiations. If log_process is True and consensus is reached, the log will be padded up to max_steps for visualization consistency. If log_process is False, this can be set to a very high number and the negotiations stops only when consensus is reached.
+    :param agent_names: Human readeable names for the agents. If None, it will be inferred from the confidence_functions and they will be called "Agent 0", "Agent 1", etc.
     :param agent_weights: [Default:None] weights of the agents used in aggregation phase
     :return: a DataFrame
     '''
     
     logger = StatisticsLogger()
-    
-    agents = [Agent(agentname, model, confidence_func) for agentname, model, confidence_func in zip(AGENT_NAMES, models, confidence_functions)]
+    if agent_names is None:
+        agent_names = ['Agent {}'.format(n) for n in range(len(confidence_functions))]
+    agents = [Agent(agentname, model, confidence_func) for agentname, model, confidence_func in zip(agent_names, models, confidence_functions)]
     mediator = Mediator(agents)
         
     DATASET = 'datasets/coco_animals_test_balanced.csv'
@@ -190,10 +191,13 @@ def run_negotiation_on_dataset(models, confidence_functions, method_name, max_st
             logger.pd.to_csv(logger_ckpt)
     return logger.pd
     
-def load_models():
+def load_models(neg_config):
+    '''
+    :param neg_config: Configuration module (eg. NegotiationConfigNeuralNet.py) or whatever object having the parameters ALL_LABELS and AGENT_NAMES.
+    '''
     from SegmentationModel import SegmentationModel
     # Creating the models
-    models = [SegmentationModel(ALL_LABELS[i]) for i in range(len(AGENT_NAMES))]
+    models = [SegmentationModel(neg_config.ALL_LABELS[i]) for i in range(len(neg_config.AGENT_NAMES))]
     # Load the checkpoints
     for m in models:
         m.load_finetuned_network(epoch=275)
