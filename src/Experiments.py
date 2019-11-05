@@ -4,12 +4,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sb
 
-stats = negtools.StatisticsLogger()
-nt = negtools.NegTools()
-import Negotiation as neg 
+
+ 
 
 
 def run_simple_aggregation(proposals, gt, mask, agg_method, noise_samples, noise_std, confidence_functions=None, binary_strategy='maximum', label_names=None):
+    stats = negtools.StatisticsLogger()
+    nt = negtools.NegTools()
+    import Negotiation as neg
     results = pd.DataFrame()
     
     # Define which function to call and the human readable names for each method
@@ -38,6 +40,10 @@ def run_simple_aggregation(proposals, gt, mask, agg_method, noise_samples, noise
         return means
 
 def run_negotiation(proposals, gt, mask, noise_samples, noise_std, confidence_functions=None, binary_strategy='maximum', agent_names=None, label_names=None, MAX_STEPS=1000):
+    stats = negtools.StatisticsLogger()
+    nt = negtools.NegTools()
+    import Negotiation as neg
+    
     results = pd.DataFrame()
     
     # Run the aggregation
@@ -81,6 +87,10 @@ def run_experiment_on_list(proposals_list, gt_list, return_mean=True, agent_name
     :param label_names: 
     :return DataFrame containing the average metrics for the given samples if return_mean is true, the full DataFrame otherwise.
     '''
+    stats = negtools.StatisticsLogger()
+    nt = negtools.NegTools()
+    import Negotiation as neg
+    
     results = pd.DataFrame()
     for sample_id, (prop, gt) in enumerate(zip(proposals_list, gt_list)):
         sample_results = pd.DataFrame()

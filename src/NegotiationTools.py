@@ -4,7 +4,7 @@ import datetime
 import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report
 
-import tensorflow as tf
+
 from scipy.ndimage import convolve
 
 
@@ -132,7 +132,10 @@ class StatisticsLogger():
 
 
 class NegTools():
-
+    # This has to be here to support multithreading
+    import tensorflow as tf        
+        
+        
     def binarize(self, x, strategy, treshold=0.5, axis=-1):
         '''
         Returns a binary vector from a floating point represenatation. The strategy control how it is computed.
@@ -215,6 +218,7 @@ class NegTools():
         :param scope: filter size.
         :return:
         '''
+        import tensorflow as tf 
         if scope % 2 == 0:
             print("Warning: Even filter size could result in asymmetrical convolution")
         pred = tf.cast(pred, tf.float32)
