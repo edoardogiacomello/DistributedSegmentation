@@ -114,3 +114,4 @@ src/models/
 # Dataset and other big files
 src/datasets/
 src/models_old/
+src/results/*.csv
