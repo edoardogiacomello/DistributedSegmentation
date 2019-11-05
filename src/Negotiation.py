@@ -91,7 +91,7 @@ class Mediator():
             else:
                 yield 'negotiation', self.last_agreement, self.last_proposals
         yield 'timeout', self.last_agreement, self.last_proposals
-        raise StopIteration()
+        #raise StopIteration()
         
 
 def run_negotiation_on_proposasls(sample_id, initial_proposals, ground_truth, confidence_functions, method_name, log_process, max_steps, agent_names=None, agent_weights = None):    
