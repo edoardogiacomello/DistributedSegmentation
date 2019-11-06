@@ -110,9 +110,19 @@ def run_experiment_on_list(proposals_list, gt_list, return_mean=True, agent_name
         sample_outputs = dict()
         
         mask = np.logical_not(nt.get_consensus(prop))
+        
         if np.all(~mask):
-            # Consensus may be enforced by construction, in these case we consider all the image
-            mask = None
+            # In the cases for which there's consensus by design, we just assume the solution is not relevant
+            
+            # Calculating mock row
+            cons_results = stats.compute_statistics(gt, gt, '', mask=None, label_names=label_names)
+            sample_results = sample_results.append(cons_results, ignore_index=True, sort=False)
+            sample_results['non_consensus_px'] = np.count_nonzero(mask)
+            # skipping computation...
+            print("Proposals has full consensus, skipping...")
+            results = results.append(sample_results, ignore_index=True)
+            outputs.append(sample_outputs)
+            continue
        
         # One shot methods
         mv_results = run_simple_aggregation(prop, gt, mask, agg_method='majority voting', noise_samples=0, noise_std=None, label_names=label_names, binary_strategy='maximum', return_outputs=return_outputs)
@@ -218,7 +228,7 @@ def run_experiment_on_list(proposals_list, gt_list, return_mean=True, agent_name
         sample_results = sample_results.append(neg_results, ignore_index=True, sort=False)
         #sample_results['sample'] = sample_id
         
-        
+        sample_results['non_consensus_px'] = np.count_nonzero(mask)
         results = results.append(sample_results, ignore_index=True)
         outputs.append(sample_outputs)
     if not return_mean:
