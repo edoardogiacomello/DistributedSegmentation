@@ -52,7 +52,8 @@ is_one = True
 for i in range(0,W,CHK_W):
     for j in range(0,H,CHK_H):
         templates['chk'][tuple(rectangle(start=(i,j), extent=(CHK_W,CHK_H), shape=(W,H)))] = val + 1
-        val = (val + 1) % n_class
+        val = (val + 1 ) % n_class
+templates['chk'] = templates['chk'] - 1
 
 for i, (name, templ) in enumerate(templates.items()):
     plt.subplot(2, math.ceil(len(templates.items())/2), i+1)
@@ -124,3 +125,57 @@ def generate_ground_truth(gt_template, n_labels):
         gt.append(gt_slice)
     return np.stack(gt, axis=-1)
 
+def agent_multiclass_expert(mu_star, mu, std, c_star, n_labels):
+    '''
+    :param mu_star - "competence" on expertise class
+    :param mu - "competence" on non expertise classes
+    :param std - standard deviation
+    :param c_star - index of expertise class
+    :param n_labels - number of labels
+    '''
+    gamma = 1 - mu - (1 - mu_star)/(n_labels-1)
+    
+    mat = list()
+    for t in range(n_labels):
+        row = list()
+        for p in range(n_labels):
+            if p == c_star and t == c_star:
+                row.append(mu_star)
+            elif t == c_star or p == c_star:
+                row.append((1.-mu_star)/(n_labels - 1.))
+            elif p == t:
+                row.append(mu)
+            else:
+                row.append(gamma/(n_labels - 2.))
+        mat.append(row)
+    mu_mat = np.asarray(mat)
+    std_mat = np.ones_like(mu_mat)*std
+    return mu_mat, std_mat
+
+def agent_multiclass_unbalanced(mu_star, mu, gamma, std, c_star, n_labels):
+    '''
+    :param mu_star - "competence" on expertise class
+    :param mu - "competence" on non expertise classes
+    :param std - standard deviation
+    :param c_star - index of expertise class
+    :param n_labels - number of labels
+    '''
+    
+    mat = list()
+    for t in range(n_labels):
+        row = list()
+        for p in range(n_labels):
+            if p == c_star and t == c_star:
+                row.append(mu_star)
+            elif t == c_star:
+                row.append((1.-mu_star)/(n_labels - 1.))
+            elif p == c_star:
+                row.append((1.-mu)*gamma)
+            elif p == t:
+                row.append(mu*gamma)
+            else:
+                row.append((1.-gamma)/(n_labels - 2.))
+        mat.append(row)
+    mu_mat = np.asarray(mat)
+    std_mat = np.ones_like(mu_mat)*std
+    return mu_mat, std_mat

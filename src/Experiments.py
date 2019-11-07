@@ -118,10 +118,13 @@ def run_experiment_on_list(proposals_list, gt_list, return_mean=True, agent_name
             cons_results = stats.compute_statistics(gt, gt, '', mask=None, label_names=label_names)
             sample_results = sample_results.append(cons_results, ignore_index=True, sort=False)
             sample_results['non_consensus_px'] = np.count_nonzero(mask)
+            sample_results['method'] = 'Skipped (Full Consensus)'
             # skipping computation...
             print("Proposals has full consensus, skipping...")
+            
             results = results.append(sample_results, ignore_index=True)
             outputs.append(sample_outputs)
+            
             continue
        
         # One shot methods
