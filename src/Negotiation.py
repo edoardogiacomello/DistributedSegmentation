@@ -82,7 +82,7 @@ class Mediator():
                 
                 self.last_proposals = np.array([agent.propose(self.last_agreement) for agent in self.agents]) # ((p0, u0), (p1, u1), ...)
             
-            self.last_step = i            
+            self.last_step = i
             self.last_agreement = np.divide(np.sum(self.last_proposals*self.W, axis=0), np.sum(self.W, axis=0))
 
             if self.tools.get_consensus(self.last_proposals).all():
@@ -140,11 +140,11 @@ def run_negotiation_on_proposasls(sample_id, initial_proposals, ground_truth, co
 
         for step, (status, curr_agreement, curr_proposals) in next_step:
             if status == 'consensus':
-                print("Sample {} Consensus Reached at step, current step: {}".format(sample_id, step))
+                print("{}: Sample {}, Consensus Reached at step {}".format(method_name, sample_id, step))
                 return curr_agreement, curr_proposals
                 break
             #print("Sample:{} Step: {}".format(str(sample_id), str(step)))
-        print("Sample {} Timed out after {} steps".format(sample_id, step))
+        print("{}: Sample {}, Timed out after {} steps".format(method_name, sample_id, step))
         return curr_agreement, curr_proposals
 
     

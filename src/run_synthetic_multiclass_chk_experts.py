@@ -8,15 +8,13 @@ SAMPLES = 30
 
 
 mu_star_expert_list = [num/N_LABELS for num in [1+1e-6, 1.5] + list(range(N_LABELS)[2:])]
-mu_expert_list = [num/N_LABELS for num in [1, 1.1, 1.5] + list(range(N_LABELS-1)[3:])]
+mu_expert_list = [num/N_LABELS for num in [1, 1.1, 1.5] + list(range(N_LABELS-1)[2:])]
 
 # One expert agent for each label
 log = pd.DataFrame()
 for std in [.01, .05, .1, .2]:
     for mu_star in mu_star_expert_list:
         for mu in mu_expert_list:
-            if mu > mu_star:
-                continue
             prediction_runs = list()
             for i in range(SAMPLES):
                 agents = [agent_multiclass_expert(mu_star, mu, std, c_star=l, n_labels=N_LABELS) for l in range(N_LABELS)]

@@ -36,8 +36,8 @@ h_off = 2
 blobs_val = 1
 
 templates['blobs'] = np.zeros((W, H), dtype=np.uint8)
-for i in range(0,W,blobs_w+2*w_off):
-    for j in range(0,H,blobs_h+2*h_off):
+for i in range(0,W-w_off,blobs_w+2*w_off):
+    for j in range(0,H-h_off,blobs_h+2*h_off):
         templates['blobs'][tuple(rectangle(start=(i+w_off,j+h_off), extent=(blobs_w,blobs_h), shape=(W,H)))] = blobs_val
         blobs_val = blobs_val+1
 

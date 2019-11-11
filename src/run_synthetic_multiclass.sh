@@ -1,4 +1,7 @@
 python run_synthetic_multiclass_chk_experts.py &
 python run_synthetic_multiclass_chk_unbalanced.py &
 python run_synthetic_multiclass_chk_1_expert_vs_N_Unbalanced.py &
+python run_synthetic_multiclass_blobs_experts.py &
+python run_synthetic_multiclass_blobs_unbalanced.py &
+python run_synthetic_multiclass_blobs_1_expert_vs_N_Unbalanced.py &
 wait

@@ -8,10 +8,10 @@ SAMPLES = 30
 
 mu_star_unb_list = [num/N_LABELS for num in [1+1e-6, 1.5] + list(range(N_LABELS)[2:])]
 mu_unb_list =[.4, .5, .6]
-gamma_unb_list = [n/N_LABELS for n in range(N_LABELS) if n != 0]
+gamma_unb_list = [n/N_LABELS for n in range(N_LABELS)[3:]]
 
 mu_star_expert_list = [num/N_LABELS for num in [1+1e-6, 1.5] + list(range(N_LABELS)[2:])]
-mu_expert_list = [num/N_LABELS for num in [1, 1.1, 1.5] + list(range(N_LABELS-1)[3:])]
+mu_expert_list = [num/N_LABELS for num in [1, 1.1, 1.5] + list(range(N_LABELS-1)[2:])]
 
 log = pd.DataFrame()
 for std in [.01, .05, .1, .2]:
@@ -21,9 +21,6 @@ for std in [.01, .05, .1, .2]:
                 for mu_star_unb in mu_star_unb_list:
                     for gamma in gamma_unb_list:
                         for mu_unb in mu_unb_list:
-                            if mu_unb > mu_star_unb:
-                                continue
-
                             prediction_runs = list()
                             
                             #####
