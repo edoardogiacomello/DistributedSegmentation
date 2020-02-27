@@ -1,3 +1,4 @@
+import Negotiation as neg
 import numpy as np
 import NegotiationTools as negtools
 import matplotlib.pyplot as plt
@@ -73,7 +74,7 @@ def run_experiment_on_list(proposals_list, gt_list, return_mean=True, agent_name
     '''
     stats = negtools.StatisticsLogger()
     nt = negtools.NegTools()
-    import Negotiation as neg
+    
     
     results = pd.DataFrame()
     outputs = list()
@@ -338,6 +339,7 @@ def run_experiment_on_list(proposals_list, gt_list, return_mean=True, agent_name
 
         
         sample_results['non_consensus_px'] = np.count_nonzero(mask)
+        results['sample_id'] = sample_id
         results = results.append(sample_results, ignore_index=True)
         outputs.append(sample_outputs)
     if not return_mean:

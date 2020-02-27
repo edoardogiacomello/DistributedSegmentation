@@ -174,7 +174,7 @@ class SegmentationModel():
             self.epochs = e
 
     def predict(self, x):
-        return self.model(x)
+        return self.model(x, training=False)
     
     def predict_raw(self, raw_file):
         x = tf.image.decode_png(raw_file, channels=3)
