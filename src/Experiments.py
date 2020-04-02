@@ -339,9 +339,11 @@ def run_experiment_on_list(proposals_list, gt_list, return_mean=True, agent_name
 
         
         sample_results['non_consensus_px'] = np.count_nonzero(mask)
-        results['sample_id'] = sample_id
+        sample_results['sample_id'] = sample_id
+        print("Processed sample " + str(sample_id))
         results = results.append(sample_results, ignore_index=True)
         outputs.append(sample_outputs)
+        
     if not return_mean:
         if not return_outputs:
             return results
