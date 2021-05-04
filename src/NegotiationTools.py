@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import datetime
 import matplotlib.pyplot as plt
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
 
 
 from scipy.ndimage import convolve
@@ -94,39 +94,49 @@ class StatisticsLogger():
         '''
         Compute statistics (using sklearn classification report), eventually masking the inputs.
 
-        :param ground_truth: vector of 
-        :param predictions:
+        :param ground_truth: vector of ground truths of shape [H, W, Labels]
+        :param predictions: vector of predictions of shape [H, W, Labels]
         :param prefix: prefix to give to the returned dictionary values
-        :param mask:
-        :return:
+        :param mask: An optional mask of shape [H, W]. If present, the metrics will be computed both with and without the mask applied
+        :return: A dictionary containing a statistical description of the segmentation.
         '''
         labels = range(ground_truth.shape[-1])
         label_names = ['Label {}'.format(n) for n in labels] if label_names is None else label_names
-        
+        # Do a run for the full image and another for the mask only (if any)
         if mask is None or np.all(np.logical_not(mask)):
-            mask = np.full(ground_truth.shape[0:2], fill_value=True)
-
-        ground_truth = ground_truth[np.where(mask)].argmax(axis=-1)
-        predictions = predictions[np.where(mask)].argmax(axis=-1)
-
-        report = classification_report(y_true=ground_truth,
-                                       y_pred=predictions,
-                                       labels=labels,
-                                       target_names=label_names,
-                                       output_dict=True
-                                       )
-        # Flattening the report
+            runs_to_do = ['full']
+        else:
+            runs_to_do = ['mask', 'full']
         stats = dict()
-        for metric_type, metric_dict in report.items():
-            if not isinstance(metric_dict, dict):
-                # sometimes classification_report returns an 'accuracy' float instead of 'micro_*' dictionary
-                stats[prefix + str(metric_type)] = metric_dict
-            else:
-                for metric, value in metric_dict.items():
-                    stats[prefix + str(metric_type) + '_' + metric] = value
+        for run in runs_to_do:
+            current_mask = np.full(ground_truth.shape[0:2], fill_value=True) if run == 'full' else mask
+            # Considering only the pixels for the current mask and picking the index of maximum value between the label [e.g. a pixel predicted with (0.4, 0.6) becames (1), while ]
+            gt = ground_truth[np.where(current_mask)].argmax(axis=-1)
+            pred = predictions[np.where(current_mask)].argmax(axis=-1)
+            tn, fp, fn, tp = confusion_matrix(gt.ravel(), pred.ravel(), labels=[0, 1]).ravel()
+            
+            report = classification_report(y_true=gt,
+                                           y_pred=pred,
+                                           labels=labels,
+                                           target_names=label_names,
+                                           output_dict=True
+                                           )
+            # Flattening the report
+            
+            for metric_type, metric_dict in report.items():
+                if not isinstance(metric_dict, dict):
+                    # sometimes classification_report returns an 'accuracy' float instead of 'micro_*' dictionary
+                    stats[f'{prefix}{run}_{metric_type}'] = metric_dict
+                else:
+                    for metric, value in metric_dict.items():
+                        stats[f"{prefix}{run}_{metric_type}_{metric}"] = value
+            
+            stats[f"{prefix}{run}_TN"] = tn
+            stats[f"{prefix}{run}_FN"] = fn
+            stats[f"{prefix}{run}_TP"] = tp
+            stats[f"{prefix}{run}_FP"] = fp
 
         return stats
-
     def save(self):
         self.pd.to_csv('results/run_{}.csv'.format(str(datetime.datetime.now())))
 
@@ -151,11 +161,18 @@ class NegTools():
         if strategy == 'maximum':
             return np.equal(x, x.max(axis=axis)[..., np.newaxis])
 
-    def get_consensus(self, proposals_np):
-        binary_predictions = np.equal(proposals_np, proposals_np.max(axis=-1)[..., np.newaxis])
+    def get_consensus(self, proposals_np, binary_strategy='treshold'):
+        '''
+        Return the consensus of a given set of proposals of shape [Agents, H, W, Labels].
+        '''
+        binary_predictions = self.binarize(proposals_np, strategy=binary_strategy)
         # For each pixel check if there's any label fow which every agent proposes True
         return np.all(binary_predictions, axis=0).any(axis=-1)
 
+    def get_votes(self, proposals_np, binary_strategy):
+        binary_predictions = self.binarize(proposals_np, binary_strategy, axis=-1)
+        return np.count_nonzero(binary_predictions, axis=0)
+    
     def compute_majority_voting(self, proposals_np, binary_strategy):
         '''
         Calculates the Majority voting between the given agent proposals. Ties are resolved by random sampling.
@@ -163,9 +180,7 @@ class NegTools():
         :param binary_strategy: see function "binarize". Use "maximum" if the labels for each prediction sum to one, otherwise "treshold".
         :return: A binary vector of shape (H, W, Labels)
         '''
-
-        binary_predictions = self.binarize(proposals_np, binary_strategy, axis=-1)
-        votes = np.count_nonzero(binary_predictions, axis=0)
+        votes = self.get_votes(proposals_np, binary_strategy)
         majority = np.equal(votes, votes.max(axis=-1, keepdims=True))
         majority = self.tie_breaking(majority)
 
