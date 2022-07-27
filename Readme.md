@@ -1,4 +1,4 @@
-## DCSeg - Aggregation of Segmentation Models Output
+## Distributed Segmentation - Aggregation of Segmentation Models Output
 Utilities to perform aggregation from multiple neural-network outputs
 ### Taxonomy:
     - Agent: Entity owning a segmentation model or, by extension, a segmentation model itself.
